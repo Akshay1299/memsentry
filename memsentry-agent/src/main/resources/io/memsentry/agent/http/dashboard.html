@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>MemSentry</title>
+<style>
+  :root {
+    --bg: #0b0e14;
+    --panel: #121723;
+    --panel-2: #18202f;
+    --border: #232c3d;
+    --text: #e6edf3;
+    --muted: #8b98ad;
+    --accent: #5b9dff;
+    --ok: #2ecc71;
+    --warn: #f5a623;
+    --bad: #ff5c5c;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: var(--sans); font-size: 14px; line-height: 1.45;
+  }
+  a { color: var(--accent); }
+  header {
+    display: flex; align-items: center; gap: 16px;
+    padding: 16px 24px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: rgba(11,14,20,0.92);
+    backdrop-filter: blur(8px); z-index: 10;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; letter-spacing: .3px; }
+  .logo .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 12px var(--accent); }
+  .badge {
+    padding: 5px 12px; border-radius: 999px; font-weight: 600; font-size: 12.5px;
+    border: 1px solid transparent; text-transform: uppercase; letter-spacing: .5px;
+  }
+  .badge.HEALTHY { background: rgba(46,204,113,.14); color: var(--ok); border-color: rgba(46,204,113,.35); }
+  .badge.WATCHING { background: rgba(245,166,35,.14); color: var(--warn); border-color: rgba(245,166,35,.35); }
+  .badge.LEAK_SUSPECTED { background: rgba(255,92,92,.16); color: var(--bad); border-color: rgba(255,92,92,.4); animation: pulse 1.6s infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
+  .spacer { flex: 1; }
+  .updated { color: var(--muted); font-size: 12.5px; font-family: var(--mono); }
+
+  main { padding: 24px; max-width: 1240px; margin: 0 auto; }
+  .grid { display: grid; gap: 16px; }
+  .cols-4 { grid-template-columns: repeat(4, 1fr); }
+  .cols-2 { grid-template-columns: 2fr 1fr; }
+  @media (max-width: 900px) { .cols-4 { grid-template-columns: repeat(2,1fr); } .cols-2 { grid-template-columns: 1fr; } }
+
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+  .card h2 { margin: 0 0 12px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; font-weight: 600; }
+  .stat { font-size: 30px; font-weight: 700; font-family: var(--mono); }
+  .stat small { font-size: 14px; color: var(--muted); font-weight: 500; }
+  .substat { color: var(--muted); font-size: 12.5px; margin-top: 4px; font-family: var(--mono); }
+
+  .heap-wrap { margin-top: 8px; }
+  .bar { height: 10px; border-radius: 6px; background: var(--panel-2); overflow: hidden; margin-top: 10px; }
+  .bar > span { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), #8a6bff); transition: width .4s ease; }
+  .bar.warn > span { background: linear-gradient(90deg, var(--warn), #ff8a3d); }
+  .bar.bad > span { background: linear-gradient(90deg, var(--bad), #ff2d6f); }
+
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+  th { color: var(--muted); font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .5px; }
+  td.num, th.num { text-align: right; font-family: var(--mono); }
+  tr.leak td { background: rgba(255,92,92,.07); }
+  tr.leak td:first-child { box-shadow: inset 3px 0 0 var(--bad); }
+  .cls { font-family: var(--mono); font-size: 12.5px; }
+  .tag { font-size: 10.5px; padding: 2px 7px; border-radius: 6px; font-weight: 700; letter-spacing: .4px; }
+  .tag.leak { background: rgba(255,92,92,.18); color: var(--bad); }
+  .tag.watch { background: rgba(245,166,35,.16); color: var(--warn); }
+  .site { font-family: var(--mono); font-size: 11.5px; color: var(--accent); }
+  .empty { color: var(--muted); padding: 18px 4px; font-style: italic; }
+
+  .feed { list-style: none; margin: 0; padding: 0; max-height: 320px; overflow-y: auto; }
+  .feed li { display: flex; gap: 10px; align-items: baseline; padding: 7px 2px; border-bottom: 1px dashed var(--border); font-size: 12.5px; }
+  .feed .lvl { font-family: var(--mono); font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 5px; min-width: 48px; text-align: center; }
+  .lvl.INFO { background: rgba(91,157,255,.14); color: var(--accent); }
+  .lvl.WARN { background: rgba(245,166,35,.16); color: var(--warn); }
+  .lvl.LEAK, .lvl.ALERT { background: rgba(255,92,92,.18); color: var(--bad); }
+  .lvl.DUMP { background: rgba(46,204,113,.16); color: var(--ok); }
+  .feed .t { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+  .hotspot { padding: 10px 2px; border-bottom: 1px solid var(--border); }
+  .hotspot .frame { font-family: var(--mono); font-size: 12px; color: var(--accent); }
+  .hotspot details summary { cursor: pointer; color: var(--muted); font-size: 11.5px; margin-top: 4px; }
+  .hotspot pre { margin: 6px 0 0; font-size: 11px; color: var(--muted); white-space: pre-wrap; }
+  .offline { color: var(--bad); }
+  footer { text-align: center; color: var(--muted); font-size: 11.5px; padding: 24px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><span class="dot"></span> MemSentry</div>
+  <span id="status" class="badge HEALTHY">Healthy</span>
+  <div class="spacer"></div>
+  <div class="updated" id="updated">connecting…</div>
+</header>
+
+<main>
+  <section class="grid cols-4" style="margin-bottom:16px">
+    <div class="card">
+      <h2>Heap Used</h2>
+      <div class="stat"><span id="heapUsed">–</span> <small>/ <span id="heapMax">–</span> MB</small></div>
+      <div class="bar" id="heapBar"><span style="width:0%"></span></div>
+      <div class="substat"><span id="heapPct">0</span>% of max · committed <span id="heapCommitted">–</span> MB</div>
+    </div>
+    <div class="card">
+      <h2>Leak Suspects</h2>
+      <div class="stat" id="suspectCount">0</div>
+      <div class="substat"><span id="leakCount">0</span> over threshold</div>
+    </div>
+    <div class="card">
+      <h2>Heap Dumps</h2>
+      <div class="stat" id="dumpCount">0</div>
+      <div class="substat" id="lastDump">none captured</div>
+    </div>
+    <div class="card">
+      <h2>Alloc Hotspots</h2>
+      <div class="stat" id="hotspotCount">0</div>
+      <div class="substat">via JFR old-object sampling</div>
+    </div>
+  </section>
+
+  <section class="card" style="margin-bottom:16px">
+    <h2>Heap Trend</h2>
+    <div id="heapChart" class="heap-wrap"></div>
+  </section>
+
+  <section class="grid cols-2">
+    <div class="card">
+      <h2>Suspected Leaking Classes</h2>
+      <table>
+        <thead><tr>
+          <th>Class</th><th class="num">Now</th><th class="num">Growth</th>
+          <th class="num">R²</th><th>Trend</th><th>Allocated at</th>
+        </tr></thead>
+        <tbody id="suspects"></tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h2>Activity</h2>
+      <ul class="feed" id="feed"></ul>
+    </div>
+  </section>
+
+  <section class="card" style="margin-top:16px">
+    <h2>Allocation Hotspots (JFR)</h2>
+    <div id="hotspots"></div>
+  </section>
+</main>
+
+<footer>MemSentry agent · polling <span class="cls">/api/state</span> every 2s</footer>
+
+<script>
+const MB = 1024 * 1024;
+const fmtMB = b => (b / MB).toFixed(b < 10 * MB ? 1 : 0);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ago = ms => { const d = Math.max(0, Date.now() - ms); if (d < 60000) return Math.floor(d/1000) + "s ago"; if (d < 3600000) return Math.floor(d/60000) + "m ago"; return Math.floor(d/3600000) + "h ago"; };
+const clock = ms => new Date(ms).toLocaleTimeString();
+
+// Build an SVG sparkline path from an array of numbers.
+function sparkline(values, w, h, color) {
+  if (!values || values.length < 2) return "";
+  const min = Math.min(...values), max = Math.max(...values);
+  const span = (max - min) || 1;
+  const step = w / (values.length - 1);
+  const pts = values.map((v, i) => [i * step, h - ((v - min) / span) * (h - 2) - 1]);
+  const d = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+  const area = d + ` L ${w} ${h} L 0 ${h} Z`;
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+    <path d="${area}" fill="${color}" opacity="0.12"/>
+    <path d="${d}" fill="none" stroke="${color}" stroke-width="1.6"/></svg>`;
+}
+
+function heapChart(history) {
+  const el = document.getElementById("heapChart");
+  if (!history || history.length < 2) { el.innerHTML = '<div class="empty">collecting samples…</div>'; return; }
+  const used = history.map(p => p[1]);
+  const w = el.clientWidth || 1000, h = 120;
+  const maxV = Math.max(...history.map(p => p[2] || 0), ...used) || 1;
+  const step = w / (history.length - 1);
+  const pts = used.map((v, i) => [i * step, h - (v / maxV) * (h - 6) - 3]);
+  const line = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+  const area = line + ` L ${w} ${h} L 0 ${h} Z`;
+  el.innerHTML = `<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5b9dff" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#5b9dff" stop-opacity="0"/></linearGradient></defs>
+    <path d="${area}" fill="url(#g)"/>
+    <path d="${line}" fill="none" stroke="#5b9dff" stroke-width="2"/></svg>`;
+}
+
+function render(s) {
+  const used = s.heapUsed || 0, max = s.heapMax || 0;
+  const pct = max > 0 ? Math.round(100 * used / max) : 0;
+  document.getElementById("heapUsed").textContent = fmtMB(used);
+  document.getElementById("heapMax").textContent = fmtMB(max);
+  document.getElementById("heapCommitted").textContent = fmtMB(s.heapCommitted || 0);
+  document.getElementById("heapPct").textContent = pct;
+  const bar = document.getElementById("heapBar");
+  bar.className = "bar" + (pct >= 85 ? " bad" : pct >= 65 ? " warn" : "");
+  bar.firstElementChild.style.width = pct + "%";
+
+  const suspects = s.suspects || [];
+  const leaks = suspects.filter(x => x.leak);
+  document.getElementById("suspectCount").textContent = suspects.length;
+  document.getElementById("leakCount").textContent = leaks.length;
+  document.getElementById("dumpCount").textContent = s.totalDumps || 0;
+  document.getElementById("lastDump").textContent = s.lastDumpPath ? s.lastDumpPath.split("/").pop() : "none captured";
+  document.getElementById("hotspotCount").textContent = (s.hotspots || []).length;
+
+  const badge = document.getElementById("status");
+  badge.className = "badge " + s.status;
+  badge.textContent = { HEALTHY: "Healthy", WATCHING: "Watching", LEAK_SUSPECTED: "Leak Suspected" }[s.status] || s.status;
+
+  heapChart(s.heapHistory);
+
+  const tbody = document.getElementById("suspects");
+  if (!suspects.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">No growing classes detected.</td></tr>';
+  } else {
+    tbody.innerHTML = suspects.map(x => {
+      const tag = x.leak ? '<span class="tag leak">LEAK</span>' : '<span class="tag watch">WATCH</span>';
+      const color = x.leak ? "#ff5c5c" : "#f5a623";
+      return `<tr class="${x.leak ? 'leak' : ''}">
+        <td><div class="cls">${esc(x.className)}</div>${tag}</td>
+        <td class="num">${fmtMB(x.currentBytes)} MB</td>
+        <td class="num">${(x.growthMbPerMin).toFixed(2)}/min</td>
+        <td class="num">${(x.rSquared).toFixed(2)}</td>
+        <td>${sparkline(x.series, 90, 26, color)}</td>
+        <td class="site">${x.allocationSite ? esc(x.allocationSite) : '<span class="empty">—</span>'}</td>
+      </tr>`;
+    }).join("");
+  }
+
+  const hs = document.getElementById("hotspots");
+  const hotspots = s.hotspots || [];
+  if (!hotspots.length) {
+    hs.innerHTML = '<div class="empty">No old-object samples yet (JFR needs survivors across a GC).</div>';
+  } else {
+    hs.innerHTML = hotspots.map(h => `<div class="hotspot">
+      <div><span class="cls">${esc(h.className)}</span> · <b>${h.samples}</b> samples</div>
+      <div class="frame">${esc(h.topFrame)}</div>
+      ${(h.stack && h.stack.length) ? `<details><summary>stack (${h.stack.length})</summary><pre>${h.stack.map(esc).join("\n")}</pre></details>` : ""}
+    </div>`).join("");
+  }
+
+  const feed = document.getElementById("feed");
+  const events = s.events || [];
+  feed.innerHTML = events.length
+    ? events.map(e => `<li><span class="lvl ${esc(e.level)}">${esc(e.level)}</span>
+        <span class="msg">${esc(e.message)}</span><span class="spacer" style="flex:1"></span>
+        <span class="t">${clock(e.time)}</span></li>`).join("")
+    : '<li class="empty">No events yet.</li>';
+
+  document.getElementById("updated").textContent = "updated " + clock(s.timestamp);
+}
+
+async function poll() {
+  try {
+    const r = await fetch("/api/state", { cache: "no-store" });
+    render(await r.json());
+  } catch (e) {
+    document.getElementById("updated").innerHTML = '<span class="offline">agent unreachable</span>';
+  }
+}
+poll();
+setInterval(poll, 2000);
+</script>
+</body>
+</html>
