@@ -1,10 +1,15 @@
 # MemSentry
 
+### ▶ [**Live dashboard demo**](https://akshay1299.github.io/memsentry/) — replays a real captured leak (no install)
+
 A zero-config **JVM memory-leak detection agent**. Attach it to any Java service with
 `-javaagent:memsentry-agent.jar` — no code changes, no dependencies on your classpath —
 and it watches the heap, detects leak signatures, attributes them to the code that
 allocated the leaking objects, captures a heap dump, and alerts you **before the process
 OOMs**.
+
+> The link above is the actual dashboard served by the agent; on GitHub Pages it detects
+> there's no live backend and replays a recorded sequence of real snapshots.
 
 It ships with a built-in live dashboard, a Prometheus `/metrics` endpoint, and a demo app
 that leaks on command so you can see it work in under a minute.

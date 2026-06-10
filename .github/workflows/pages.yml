@@ -1,0 +1,41 @@
+name: Deploy dashboard to GitHub Pages
+
+# Publishes the MemSentry dashboard as a static site. Since GitHub Pages can't run the
+# JVM agent, the page detects there is no live /api/state and replays a recorded sequence
+# of real snapshots (site/demo-states.json) — so the public link is a live, looping demo.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage site
+        run: |
+          mkdir -p _site
+          cp memsentry-agent/src/main/resources/io/memsentry/agent/http/dashboard.html _site/index.html
+          cp site/demo-states.json _site/demo-states.json
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
