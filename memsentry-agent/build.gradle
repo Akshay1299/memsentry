@@ -1,0 +1,35 @@
+plugins {
+    id 'java'
+}
+
+dependencies {
+    // Deliberately ZERO runtime dependencies in Phase 1.
+    //
+    // A -javaagent is loaded onto the target application's classpath. Pulling in
+    // logging frameworks, JSON libs, etc. risks version clashes with whatever the
+    // host service already ships. We stay dependency-free until a later phase, and
+    // when we do add deps we'll shade + relocate them into an isolated namespace.
+    testImplementation platform('org.junit:junit-bom:5.11.3')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    useJUnitPlatform()
+}
+
+jar {
+    archiveBaseName = 'memsentry-agent'
+    manifest {
+        attributes(
+            // premain  -> attached at JVM launch via -javaagent
+            // agentmain -> attached dynamically to a running JVM
+            'Premain-Class'        : 'io.memsentry.agent.MemSentryAgent',
+            'Agent-Class'          : 'io.memsentry.agent.MemSentryAgent',
+            'Can-Redefine-Classes' : 'true',
+            'Can-Retransform-Classes': 'true',
+            'Implementation-Title' : 'MemSentry Agent',
+            'Implementation-Version': project.version
+        )
+    }
+}

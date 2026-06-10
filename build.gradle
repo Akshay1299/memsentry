@@ -1,0 +1,26 @@
+// Root build for MemSentry — a JVM memory-leak detection agent.
+// No sources live here; this only configures the subprojects.
+
+subprojects {
+    apply plugin: 'java'
+
+    group = 'io.memsentry'
+    version = '0.1.0-SNAPSHOT'
+
+    java {
+        toolchain {
+            // Match the resume narrative (Java 21). Gradle resolves this against
+            // the installations declared in gradle.properties.
+            languageVersion = JavaLanguageVersion.of(21)
+        }
+    }
+
+    repositories {
+        mavenCentral()
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        options.compilerArgs << '-Xlint:all'
+    }
+}

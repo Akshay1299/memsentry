@@ -1,0 +1,25 @@
+# Build output
+build/
+out/
+bin/
+
+# Gradle
+.gradle/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+
+# OS
+.DS_Store
+
+# MemSentry artifacts captured at runtime
+*.hprof
+heapdumps/
+*.jfr

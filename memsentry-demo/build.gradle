@@ -1,0 +1,11 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+// Phase 1 demo is a plain Java app that leaks heap on a fixed schedule, just enough
+// to watch the agent's heartbeat react. It graduates to a Spring Boot app with
+// multiple toggleable leak types in Phase 5.
+application {
+    mainClass = 'io.memsentry.demo.LeakyApp'
+}
