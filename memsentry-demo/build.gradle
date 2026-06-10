@@ -3,9 +3,9 @@ plugins {
     id 'application'
 }
 
-// Phase 1 demo is a plain Java app that leaks heap on a fixed schedule, just enough
-// to watch the agent's heartbeat react. It graduates to a Spring Boot app with
-// multiple toggleable leak types in Phase 5.
+// DemoApp is a small control-panel web service that leaks memory on command (list / cache
+// / strings) so the agent has something to detect. LeakyApp remains as a minimal
+// leak-to-OOM example. Zero dependencies — just the JDK's built-in HTTP server.
 application {
-    mainClass = 'io.memsentry.demo.LeakyApp'
+    mainClass = 'io.memsentry.demo.DemoApp'
 }
