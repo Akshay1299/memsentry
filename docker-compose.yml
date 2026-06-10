@@ -1,0 +1,43 @@
+# Full local stack: the demo app under the MemSentry agent, plus Prometheus scraping
+# the agent's /metrics endpoint and Grafana pre-wired to Prometheus.
+#
+#   docker compose up --build
+#   • Demo control panel : http://localhost:8099
+#   • MemSentry dashboard : http://localhost:7077
+#   • Prometheus          : http://localhost:9090
+#   • Grafana             : http://localhost:3000  (anonymous admin)
+
+services:
+  memsentry:
+    build: .
+    container_name: memsentry-demo
+    ports:
+      - "7077:7077"   # MemSentry dashboard + /metrics
+      - "8099:8099"   # demo control panel
+    environment:
+      MEMSENTRY_OPTS: "histogram=10s,port=7077"
+      PORT: "8099"
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: memsentry-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deploy/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - memsentry
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: memsentry-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Admin"
+      GF_USERS_DEFAULT_THEME: "dark"
+    volumes:
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus

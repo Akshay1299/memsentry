@@ -1,0 +1,8 @@
+**/build
+.gradle
+heapdumps
+*.hprof
+*.jfr
+.git
+.idea
+*.iml
